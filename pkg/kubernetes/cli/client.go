@@ -15,13 +15,16 @@ import (
 	"github.com/caos/orbos/pkg/secret"
 )
 
-func Client(
+var ErrNotInitialized = errors.New("cluster is probably not yet initialized")
+
+func Init(
 	monitor mntr.Monitor,
 	orbConfig *orb.Orb,
 	gitClient *git.Client,
 	kubeconfig string,
 	gitops bool,
 	clone bool,
+	omitK8sClient bool,
 ) (*kubernetes.Client, error) {
 
 	var kc string
@@ -40,7 +43,7 @@ func Client(
 				return nil, err
 			}
 		}
-		if gitClient.Exists(git.OrbiterFile) {
+		if gitClient.Exists(git.OrbiterFile) && !omitK8sClient {
 			orbTree, err := gitClient.ReadTree(git.OrbiterFile)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get tree for %s: %w", git.OrbiterFile, err)
@@ -60,19 +63,23 @@ func Client(
 					operators.GetAllSecretsFunc(monitor, false, gitops, gitClient, nil, orbConfig),
 				)
 				if err != nil || kc == "" {
-					if kc == "" && err == nil {
-						err = errors.New("kubeconfig from ORBITERs desired state not found")
+					if err == nil {
+						return nil, ErrNotInitialized
 					}
-					return nil, fmt.Errorf("failed to get ORBITERs kubeconfig: %w", err)
+					return nil, fmt.Errorf(err.Error()+": %w", ErrNotInitialized)
 				}
 			}
 		}
 	}
 
+	if omitK8sClient {
+		return nil, nil
+	}
+
 	if kc == "" {
 		value, err := ioutil.ReadFile(kubeconfig)
 		if err != nil {
-			return nil, err
+			return nil, mntr.ToUserError(err)
 		}
 		kc = string(value)
 	}

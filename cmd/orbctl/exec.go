@@ -35,23 +35,14 @@ func ExecCommand(getRv GetRootValues) *cobra.Command {
 			machineID = args[0]
 		}
 
-		rv, err := getRv("exec", "", map[string]interface{}{"machine": machineID, "command": command != ""})
-		if err != nil {
-			return err
-		}
-		defer func() {
-			err = rv.ErrFunc(err)
-		}()
-
-		monitor := rv.Monitor
-		orbConfig := rv.OrbConfig
-		gitClient := rv.GitClient
+		rv := getRv("exec", "", map[string]interface{}{"machine": machineID, "command": command != ""})
+		defer rv.ErrFunc(err)
 
 		if !rv.Gitops {
 			return mntr.ToUserError(errors.New("exec command is only supported with the --gitops flag and a committed orbiter.yml"))
 		}
 
-		return machines(monitor, gitClient, orbConfig, func(machineIDs []string, machines map[string]infra.Machine, _ *tree.Tree) error {
+		return machines(monitor, rv.GitClient, rv.OrbConfig, func(machineIDs []string, machines map[string]infra.Machine, _ *tree.Tree) error {
 
 			if machineID == "" {
 				if err := survey.AskOne(&survey.Select{

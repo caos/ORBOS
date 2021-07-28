@@ -50,7 +50,7 @@ func main() {
 
 	if gitopsmode {
 
-		k8sClient, err := cli.Client(monitor, orbConfig, gitClient, kubeconfig, gitopsmode, true)
+		k8sClient, err := cli.Init(monitor, orbConfig, gitClient, kubeconfig, gitopsmode, true, false)
 		if err != nil {
 			monitor.Error(err)
 			os.Exit(1)

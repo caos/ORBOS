@@ -23,22 +23,14 @@ func ReplaceCommand(getRv GetRootValues) *cobra.Command {
 				node = args[0]
 			}
 
-			rv, err := getRv("replace", "", map[string]interface{}{"node": node})
-			if err != nil {
-				return err
-			}
-			defer func() {
-				err = rv.ErrFunc(err)
-			}()
-
-			orbConfig := rv.OrbConfig
-			gitClient := rv.GitClient
+			rv := getRv("replace", "", map[string]interface{}{"node": node})
+			defer rv.ErrFunc(err)
 
 			if !rv.Gitops {
 				return mntr.ToUserError(errors.New("replace command is only supported with the --gitops flag and a committed orbiter.yml"))
 			}
 
-			return requireMachines(monitor, gitClient, orbConfig, args, func(machine infra.Machine) (required bool, require func(), unrequire func()) {
+			return requireMachines(monitor, rv.GitClient, rv.OrbConfig, args, func(machine infra.Machine) (required bool, require func(), unrequire func()) {
 				return machine.ReplacementRequired()
 			})
 		},

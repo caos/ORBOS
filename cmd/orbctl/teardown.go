@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/caos/orbos/pkg/git"
+	"github.com/caos/orbos/pkg/kubernetes/cli"
 
-	orbcfg "github.com/caos/orbos/pkg/orb"
+	"github.com/caos/orbos/pkg/git"
 
 	"github.com/caos/orbos/pkg/labels"
 
@@ -50,39 +50,22 @@ func TeardownCommand(getRv GetRootValues) *cobra.Command {
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 
-		rv, err := getRv("teardown", "", nil)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			err = rv.ErrFunc(err)
-		}()
-
-		monitor := rv.Monitor
-		orbConfig := rv.OrbConfig
-		gitClient := rv.GitClient
+		rv := getRv("teardown", "", nil)
+		defer rv.ErrFunc(err)
 
 		if !rv.Gitops {
 			return errors.New("teardown command is only supported with the --gitops flag and a committed orbiter.yml")
 		}
 
-		if err := orbcfg.IsComplete(orbConfig); err != nil {
+		if _, err := cli.Init(monitor, rv.OrbConfig, rv.GitClient, rv.Kubeconfig, rv.Gitops, true, false); err != nil {
 			return err
 		}
 
-		if err := gitClient.Configure(orbConfig.URL, []byte(orbConfig.Repokey)); err != nil {
-			return err
-		}
-
-		if err := gitClient.Clone(); err != nil {
-			return err
-		}
-
-		if gitClient.Exists(git.OrbiterFile) {
+		if rv.GitClient.Exists(git.OrbiterFile) {
 			monitor.WithFields(map[string]interface{}{
 				"version": version,
 				"commit":  gitCommit,
-				"repoURL": orbConfig.URL,
+				"repoURL": rv.OrbConfig.URL,
 			}).Info("Destroying Orb")
 
 			fmt.Println("Are you absolutely sure you want to destroy all clusters and providers in this Orb? [y/N]")
@@ -96,14 +79,14 @@ func TeardownCommand(getRv GetRootValues) *cobra.Command {
 			finishedChan := make(chan struct{})
 			return orbiter.Destroy(
 				monitor,
-				gitClient,
+				rv.GitClient,
 				orbadapter.AdaptFunc(
 					labels.NoopOperator("ORBOS"),
-					orbConfig,
+					rv.OrbConfig,
 					gitCommit,
 					true,
 					false,
-					gitClient,
+					rv.GitClient,
 				),
 				finishedChan,
 			)

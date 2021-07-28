@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -65,12 +66,13 @@ func Takeoff(
 		return nil
 	}
 
-	k8sClient, err := cli.Client(
+	k8sClient, err := cli.Init(
 		monitor,
 		orbConfig,
 		gitClient,
 		kubeconfig,
 		gitOps,
+		false,
 		false,
 	)
 	if err != nil {
@@ -78,8 +80,7 @@ func Takeoff(
 	}
 
 	if err := kubernetes.EnsureCaosSystemNamespace(monitor, k8sClient); err != nil {
-		monitor.Info("failed to apply common resources into k8s-cluster")
-		return err
+		return fmt.Errorf("failed to apply common resources into k8s-cluster: %w", err)
 	}
 
 	if gitOps {
@@ -90,8 +91,7 @@ func Takeoff(
 		}
 
 		if err := kubernetes.EnsureOrbconfigSecret(monitor, k8sClient, orbConfigBytes); err != nil {
-			monitor.Info("failed to apply configuration resources into k8s-cluster")
-			return err
+			return fmt.Errorf("failed to apply configuration resources into k8s-cluster: %w", err)
 		}
 	}
 

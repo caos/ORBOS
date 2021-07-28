@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/caos/orbos/pkg/kubernetes/cli"
+
 	orbcfg "github.com/caos/orbos/pkg/orb"
 
 	"github.com/caos/orbos/pkg/labels"
@@ -16,15 +18,7 @@ import (
 
 func machines(monitor mntr.Monitor, gitClient *git.Client, orbConfig *orbcfg.Orb, do func(machineIDs []string, machines map[string]infra.Machine, desired *tree.Tree) error) error {
 
-	if err := orbConfig.IsConnectable(); err != nil {
-		return err
-	}
-
-	if err := gitClient.Configure(orbConfig.URL, []byte(orbConfig.Repokey)); err != nil {
-		return err
-	}
-
-	if err := gitClient.Clone(); err != nil {
+	if _, err := cli.Init(monitor, orbConfig, gitClient, "", true, true, true); err != nil {
 		return err
 	}
 

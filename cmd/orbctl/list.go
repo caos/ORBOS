@@ -34,23 +34,14 @@ func ListCommand(getRv GetRootValues) *cobra.Command {
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 
-		rv, err := getRv("list", "", map[string]interface{}{"column": column, "context": context})
-		if err != nil {
-			return err
-		}
-		defer func() {
-			err = rv.ErrFunc(err)
-		}()
-
-		monitor := rv.Monitor
-		orbConfig := rv.OrbConfig
-		gitClient := rv.GitClient
+		rv := getRv("list", "", map[string]interface{}{"column": column, "context": context})
+		defer rv.ErrFunc(err)
 
 		if !rv.Gitops {
 			return mntr.ToUserError(errors.New("list command is only supported with the --gitops flag and a committed orbiter.yml"))
 		}
 
-		return machines(monitor, gitClient, orbConfig, func(machineIDs []string, machines map[string]infra.Machine, _ *tree.Tree) error {
+		return machines(monitor, rv.GitClient, rv.OrbConfig, func(machineIDs []string, machines map[string]infra.Machine, _ *tree.Tree) error {
 
 			printer := tableprinter.New(os.Stdout)
 			printer.BorderTop, printer.BorderBottom = true, true

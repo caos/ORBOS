@@ -25,21 +25,20 @@ type RootValues struct {
 	ErrFunc    errFunc
 }
 
-type GetRootValues func(command, component string, tags map[string]interface{}) (*RootValues, error)
+type GetRootValues func(command, component string, tags map[string]interface{}) *RootValues
 
-type errFunc func(err error) error
+type errFunc func(err error)
 
 func RootCommand() (*cobra.Command, GetRootValues) {
 
 	ctx := context.Background()
 	rv := &RootValues{
 		Ctx: ctx,
-		ErrFunc: func(err error) error {
+		ErrFunc: func(err error) {
 			if err != nil {
 				monitor.Error(err)
 				os.Exit(1)
 			}
-			return nil
 		},
 	}
 
@@ -79,7 +78,7 @@ $ orbctl --gitops -f ~/.orb/myorb [command]
 	flags.BoolVar(&verbose, "verbose", false, "Print debug levelled logs")
 	flags.BoolVar(&disableAnalytics, "disable-analytics", false, "Don't help CAOS Ltd. to improve ORBOS by sending them errors and usage data")
 
-	return cmd, func(command, component string, tags map[string]interface{}) (*RootValues, error) {
+	return cmd, func(command, component string, tags map[string]interface{}) *RootValues {
 
 		if verbose {
 			monitor = monitor.Verbose()
@@ -88,10 +87,10 @@ $ orbctl --gitops -f ~/.orb/myorb [command]
 		rv.Kubeconfig = helpers.PruneHome(rv.Kubeconfig)
 		rv.GitClient = git.New(ctx, monitor, "orbos", "orbos@caos.ch")
 
-		var err error
 		if rv.Gitops {
 			prunedPath := helpers.PruneHome(orbConfigPath)
-			rv.OrbConfig, err = orb.ParseOrbConfig(prunedPath)
+			// ignore parse error here
+			rv.OrbConfig, _ = orb.ParseOrbConfig(prunedPath)
 			if rv.OrbConfig == nil {
 				rv.OrbConfig = &orb.Orb{Path: prunedPath}
 			}
@@ -101,7 +100,6 @@ $ orbctl --gitops -f ~/.orb/myorb [command]
 		if orbID, err := rv.OrbConfig.ID(); err == nil {
 			env = orbID
 		}
-		err = nil
 
 		if component == "" {
 			component = "orbctl"
@@ -115,6 +113,6 @@ $ orbctl --gitops -f ~/.orb/myorb [command]
 
 		rv.Monitor.WithFields(map[string]interface{}{"command": command, "gitops": rv.Gitops}).WithFields(tags).CaptureMessage("orbctl invoked")
 
-		return rv, err
+		return rv
 	}
 }

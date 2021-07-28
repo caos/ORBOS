@@ -38,33 +38,23 @@ orbctl writesecret mygceprovider.google_application_credentials_value.encrypted 
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 
-		s, err := key(value, file, stdin)
-		if err != nil {
-			return err
-		}
-
 		path := ""
 		if len(args) > 0 {
 			path = args[0]
 		}
 
-		rv, err := getRv("writesecret", "", map[string]interface{}{"path": path, "value": value != "", "file": file, "stdin": stdin})
+		rv := getRv("writesecret", "", map[string]interface{}{"path": path, "value": value != "", "file": file, "stdin": stdin})
+		defer rv.ErrFunc(err)
+
+		s, err := key(value, file, stdin)
 		if err != nil {
 			return err
 		}
-		defer func() {
-			err = rv.ErrFunc(err)
-		}()
 
-		monitor := rv.Monitor
-		orbConfig := rv.OrbConfig
-		gitClient := rv.GitClient
-
-		k8sClient, err := cli.Client(monitor, orbConfig, gitClient, rv.Kubeconfig, rv.Gitops, true)
-		if err != nil && !rv.Gitops {
+		k8sClient, err := cli.Init(monitor, rv.OrbConfig, rv.GitClient, rv.Kubeconfig, rv.Gitops, rv.Gitops, !rv.Gitops)
+		if err != nil {
 			return err
 		}
-		err = nil
 
 		return secret.Write(
 			monitor,
@@ -73,8 +63,8 @@ orbctl writesecret mygceprovider.google_application_credentials_value.encrypted 
 			s,
 			"orbctl",
 			version,
-			operators.GetAllSecretsFunc(monitor, true, rv.Gitops, gitClient, k8sClient, orbConfig),
-			operators.PushFunc(monitor, rv.Gitops, gitClient, k8sClient))
+			operators.GetAllSecretsFunc(monitor, true, rv.Gitops, rv.GitClient, k8sClient, rv.OrbConfig),
+			operators.PushFunc(monitor, rv.Gitops, rv.GitClient, k8sClient))
 	}
 	return cmd
 }
