@@ -9,11 +9,13 @@ import (
 
 type LoggingOperator struct {
 	monitor mntr.Monitor
+	orb     string
 }
 
-func New(monitor mntr.Monitor) *LoggingOperator {
+func New(monitor mntr.Monitor, orb string) *LoggingOperator {
 	lo := &LoggingOperator{
 		monitor: monitor,
+		orb:     orb,
 	}
 
 	return lo

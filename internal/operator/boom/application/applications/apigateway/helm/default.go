@@ -10,6 +10,9 @@ func DefaultValues(imageTags map[string]string, image string) *Values {
 	adminAnnotations := map[string]string{"app.kubernetes.io/use": "admin-service"}
 
 	return &Values{
+		Env: map[string]string{
+			"POLL_EVERY_SECS": "0",
+		},
 		NodeSelector:     map[string]string{},
 		FullnameOverride: "ambassador",
 		AdminService: &AdminService{

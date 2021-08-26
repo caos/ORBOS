@@ -1,16 +1,19 @@
 package logging
 
 type FlowConfig struct {
-	Name           string
-	Namespace      string
-	SelectLabels   map[string]string
-	Outputs        []string
-	ClusterOutputs []string
-	ParserType     string
+	Name             string
+	Namespace        string
+	SelectLabels     map[string]string
+	Outputs          []string
+	ClusterOutputs   []string
+	ParserType       string
+	ParserExpression string
+	RemoveKeys       string
 }
 
 type Parse struct {
-	Type string `yaml:"type"`
+	Type       string `yaml:"type"`
+	Expression string `yaml:"expression"`
 }
 type Parser struct {
 	RemoveKeyNameField bool   `yaml:"remove_key_name_field"`
@@ -22,8 +25,13 @@ type TagNormaliser struct {
 }
 
 type Filter struct {
-	Parser        *Parser        `yaml:"parser,omitempty"`
-	TagNormaliser *TagNormaliser `yaml:"tag_normaliser,omitempty"`
+	Parser            *Parser            `yaml:"parser,omitempty"`
+	TagNormaliser     *TagNormaliser     `yaml:"tag_normaliser,omitempty"`
+	RecordTransformer *RecordTransformer `yaml:"record_transformer,omitempty"`
+}
+
+type RecordTransformer struct {
+	RemoveKeys string `yaml:"remove_keys,omitempty"`
 }
 
 type FlowSpec struct {
@@ -50,6 +58,28 @@ type Flow struct {
 }
 
 func NewFlow(conf *FlowConfig) *Flow {
+	filters := make([]*Filter, 0)
+
+	if conf.ParserType != "" {
+		filters = append(filters, &Filter{
+			Parser: &Parser{
+				RemoveKeyNameField: true,
+				ReserveData:        true,
+				Parse: &Parse{
+					Type:       conf.ParserType,
+					Expression: conf.ParserExpression,
+				},
+			},
+		})
+	}
+	if conf.RemoveKeys != "" {
+		filters = append(filters, &Filter{
+			RecordTransformer: &RecordTransformer{
+				RemoveKeys: conf.RemoveKeys,
+			},
+		})
+	}
+
 	return &Flow{
 		APIVersion: "logging.banzaicloud.io/v1beta1",
 		Kind:       "Flow",
@@ -58,23 +88,7 @@ func NewFlow(conf *FlowConfig) *Flow {
 			Namespace: conf.Namespace,
 		},
 		Spec: &FlowSpec{
-			Filters: []*Filter{
-				{
-					Parser: &Parser{
-						RemoveKeyNameField: true,
-						ReserveData:        true,
-						Parse: &Parse{
-							Type: conf.ParserType,
-						},
-					},
-				},
-				{
-					TagNormaliser: &TagNormaliser{Format: "${namespace}.${container}.${pod}"},
-				},
-				{
-					TagNormaliser: &TagNormaliser{Format: "${namespace_name}.${container_name}.${pod_name}"},
-				},
-			},
+			Filters: filters,
 			Match: []*Match{
 				{
 					Select: &Select{

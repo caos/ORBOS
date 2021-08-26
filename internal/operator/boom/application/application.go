@@ -60,7 +60,7 @@ func New(monitor mntr.Monitor, appName name.Application, orb string) Application
 	case metriccollectioninfo.GetName():
 		return metriccollection.New(monitor)
 	case logcollectioninfo.GetName():
-		return logcollection.New(monitor)
+		return logcollection.New(monitor, orb)
 	case nodemetricsexporterinfo.GetName():
 		return nodemetricsexporter.New(monitor)
 	case systemdmetricsexporterinfo.GetName():

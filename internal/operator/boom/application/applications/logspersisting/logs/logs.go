@@ -25,7 +25,12 @@ import (
 	"github.com/caos/orbos/internal/operator/boom/labels"
 )
 
-func GetAllResources(toolsetCRDSpec *toolsetslatest.ToolsetSpec) []interface{} {
+func GetAllResources(
+	toolsetCRDSpec *toolsetslatest.ToolsetSpec,
+	withGrafanaCloud bool,
+	secretName string,
+	orb string,
+) []interface{} {
 
 	if toolsetCRDSpec.LogCollection == nil || !toolsetCRDSpec.LogCollection.Deploy {
 		return nil
@@ -44,6 +49,18 @@ func GetAllResources(toolsetCRDSpec *toolsetslatest.ToolsetSpec) []interface{} {
 		outputs = append(outputs, lokiOutputs...)
 	}
 
+	if withGrafanaCloud {
+		lokiOutputNames, lokiClusterOutputNames, lokiOutputs := getCloudLokiOutput(toolsetCRDSpec.LogsPersisting.ClusterOutput, secretName, orb)
+		outputs = append(outputs, lokiOutputs...)
+
+		if len(lokiOutputNames) > 0 || len(lokiClusterOutputNames) > 0 {
+			flows := getAllCloudFlows(toolsetCRDSpec, lokiOutputNames, lokiClusterOutputNames)
+			for _, flow := range flows {
+				ret = append(ret, flow)
+			}
+		}
+	}
+
 	for _, output := range outputs {
 		ret = append(ret, output)
 	}
@@ -59,7 +76,33 @@ func GetAllResources(toolsetCRDSpec *toolsetslatest.ToolsetSpec) []interface{} {
 	return ret
 }
 
-func getAllFlows(toolsetCRDSpec *toolsetslatest.ToolsetSpec, outputNames []string, clusterOutputs []string) []*logging.Flow {
+func getAllCloudFlows(
+	toolsetCRDSpec *toolsetslatest.ToolsetSpec,
+	cloudOutputNames []string,
+	cloudClusterOutputs []string,
+) []*logging.Flow {
+
+	if toolsetCRDSpec.LogsPersisting == nil || !toolsetCRDSpec.LogsPersisting.Deploy {
+		return []*logging.Flow{}
+	}
+
+	flows := make([]*logging.Flow, 0)
+	if toolsetCRDSpec.APIGateway != nil && toolsetCRDSpec.APIGateway.Deploy {
+		flows = append(flows, logging.NewFlow(amlogs.GetCloudFlow(cloudOutputNames, cloudClusterOutputs)))
+	}
+
+	if toolsetCRDSpec.LogsPersisting.Logs == nil || toolsetCRDSpec.LogsPersisting.Logs.Zitadel {
+		flows = append(flows, logging.NewFlow(zitadel.GetCloudZitadelFlow(cloudOutputNames, cloudClusterOutputs)))
+	}
+
+	return flows
+}
+
+func getAllFlows(
+	toolsetCRDSpec *toolsetslatest.ToolsetSpec,
+	outputNames []string,
+	clusterOutputs []string,
+) []*logging.Flow {
 
 	if toolsetCRDSpec.LogsPersisting == nil || !toolsetCRDSpec.LogsPersisting.Deploy {
 		return []*logging.Flow{}
@@ -166,6 +209,55 @@ func getLokiOutput(clusterOutput bool) ([]string, []string, []*logging.Output) {
 		Name:      "output-loki",
 		Namespace: "caos-system",
 		URL:       outputURL,
+	}
+
+	outputs := make([]*logging.Output, 0)
+	outputs = append(outputs, logging.NewOutput(clusterOutput, conf))
+
+	outputNames := make([]string, 0)
+	clusterOutputs := make([]string, 0)
+	if clusterOutput {
+		clusterOutputs = append(clusterOutputs, conf.Name)
+	} else {
+		outputNames = append(outputNames, conf.Name)
+	}
+
+	return outputNames, clusterOutputs, outputs
+}
+
+func getCloudLokiOutput(
+	clusterOutput bool,
+	secretName string,
+	orb string,
+) ([]string, []string, []*logging.Output) {
+	conf := &logging.ConfigOutput{
+		EnabledNamespaces: []string{
+			"caos-system",
+			"caos-zitadel",
+		},
+		ConfigureKubernetesLabels: true,
+		ExtractKubernetesLabels:   true,
+		ExtraLabels: map[string]string{
+			"orb": orb,
+		},
+		Labels: map[string]string{
+			"id":    "$.id",
+			"level": "$.level",
+		},
+		RemoveKeys: []string{
+			"kubernetes",
+		},
+		Name:      "output-grafana-cloud-loki",
+		Namespace: "caos-system",
+		URL:       "https://logs-prod-us-central1.grafana.net",
+		Username: &logging.SecretKeyRef{
+			Key:  "username",
+			Name: secretName,
+		},
+		Password: &logging.SecretKeyRef{
+			Key:  "password",
+			Name: secretName,
+		},
 	}
 
 	outputs := make([]*logging.Output, 0)
