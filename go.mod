@@ -17,7 +17,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-github/v31 v31.0.0
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/kataras/tablewriter v0.0.0-20180708051242-e063d29b7c23
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/landoop/tableprinter v0.0.0-20200805134727-ea32388e35c1
@@ -37,10 +36,10 @@ require (
 	google.golang.org/api v0.52.0
 	gopkg.in/raintank/schema.v1 v1.0.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.21.3
+	k8s.io/api v0.22.1
 	k8s.io/apiextensions-apiserver v0.21.3
-	k8s.io/apimachinery v0.21.3
-	k8s.io/client-go v0.21.3
+	k8s.io/apimachinery v0.22.1
+	k8s.io/client-go v0.22.1
 	k8s.io/kubectl v0.21.3
 	sigs.k8s.io/controller-runtime v0.9.5
 	sigs.k8s.io/controller-tools v0.4.1
